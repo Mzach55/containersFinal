@@ -1,0 +1,59 @@
+# Stage 1: Build stage
+FROM python:3.11-slim AS builder
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+COPY app/ /app/
+# Important to note that is temporary and will be removed later.
+
+
+# Stage 2: Runtime
+
+# distroless image, minimal image and contains only what is needed to run the application.
+FROM gcr.io/distroless/python3-debian12
+
+# Non-root user, important for security, as it means
+# any flaw in the app will not affect the host system
+#no privilege escalation
+USER 1001:1001
+
+# Setting the working directory
+WORKDIR /app
+
+# Copy the dependencies from the builder stage, avoids bloating by placing it 
+# in a directory avoid of the python directories.
+COPY --from=builder /install /usr/local
+
+# Copy the application code from the builder stage
+COPY --from=builder /app /app
+
+# tini ensures PID1 correctness and proper signal handling
+ENTRYPOINT ["/tini", "--"]
+
+# Starts the application
+CMD ["python", "app.py"]
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
+  CMD python -c "import requests; import sys; sys.exit(0 if requests.get('http://localhost:8080').status_code == 200 else 1)"
+
+
+# This is a distroless image, so it is a minimal image and contains only what is needed to run the application.
+# Security best practices due to non-root user
+# Healthcheck to ensure application functionality
+# Builder stage to separate build and runtime stages
+
+
+# Important differences
+# Before had a single stage 
+# After has a builder stage and a runtime stage
+
+# the old image contained 
+    # Python interpreter
+    # apt package system
+    # Debian utilities
+    # Shell
+    # Debugging tools
+    # C build tools
+
+# the new image contains strictly what is needed and nothing more to bloat the image
