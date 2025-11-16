@@ -1,0 +1,12 @@
+# BEFORE Dockerimage,
+
+# Build the Docker image
+FROM python:3.11-slim
+# Set the working directory in the container
+WORKDIR /app
+# Copy the application code into the container
+COPY app/ ./app/
+# Install the dependencies
+RUN pip install flask
+# Run the application
+CMD ["python", "app.py"]
